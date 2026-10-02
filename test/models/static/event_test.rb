@@ -98,6 +98,36 @@ class Static::EventTest < ActiveSupport::TestCase
     assert event_record.sponsors.exists?(organization: organization)
   end
 
+  test "import_sponsors! prefers matching by slug over matching by shared domain" do
+    Organization.create!(name: "Google Cloud", slug: "google-cloud", domain: "google.com", website: "https://cloud.google.com")
+    google = Organization.create!(name: "Google", slug: "google")
+
+    Static::EventSeries.find_by_slug("kaigi-on-rails").import_series!
+    event = Static::Event.find_by_slug("kaigi-on-rails-2026")
+    event_record = event.import_event!
+
+    mock_sponsors_file = [
+      {
+        "tiers" => [
+          {
+            "name" => "Ruby",
+            "level" => 1,
+            "sponsors" => [
+              {"name" => "Google", "slug" => "google", "website" => "https://www.google.com/"}
+            ]
+          }
+        ]
+      }
+    ]
+
+    event_record.stub(:sponsors_file, Struct.new(:exist?, :file).new(true, mock_sponsors_file)) do
+      event.import_sponsors!(event_record)
+    end
+
+    sponsor = event_record.sponsors.find_by(tier: "Ruby")
+    assert_equal google, sponsor.organization
+  end
+
   test "import_involvements!" do
     event = Static::Event.find_by_slug("xoruby-portland-2025")
     event.import_event!

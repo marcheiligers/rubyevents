@@ -411,14 +411,14 @@ module Static
                 host = uri.host || sponsor["website"]
                 parsed = PublicSuffix.parse(host)
                 domain = parsed.domain
-
-                organization = ::Organization.find_by(domain: domain) if domain.present?
               rescue PublicSuffix::Error, URI::InvalidURIError
                 # If parsing fails, continue with other matching methods
               end
             end
 
-            organization ||= ::Organization.find_by_name_or_alias(sponsor["name"]) || ::Organization.find_by_slug_or_alias(sponsor["slug"]&.downcase)
+            organization = ::Organization.find_by_slug_or_alias(sponsor["slug"]&.downcase) if sponsor["slug"].present?
+            organization ||= ::Organization.find_by_name_or_alias(sponsor["name"])
+            organization ||= ::Organization.find_by(domain: domain) if domain.present?
             organization ||= ::Organization.find_or_initialize_by(name: sponsor["name"])
 
             # Names like "フィヨルドブートキャンプ" parameterize to "", so fall back to the sponsor's slug
